@@ -1,44 +1,27 @@
-import OpenAI from "openai";
-
-const client = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY
-});
-
 export default async function handler(req, res) {
   try {
-    const { imageBase64 } = req.body;
+    const { imageBase64, imageType } = req.body;
 
     if (!imageBase64) {
-      return res.status(400).json({ error: "No image" });
+      return res.status(400).json({ error: "Missing image" });
     }
 
-    const response = await client.responses.create({
-      model: "gpt-4.1-mini",
-      input: [
+    // TEST RESPONSE (midlertidigt)
+    // (så vi ved API virker før AI)
+    return res.status(200).json({
+      events: [
         {
-          role: "user",
-          content: [
-            {
-              type: "input_text",
-              text:
-                "Udtræk vagter fra billedet. Returnér KUN JSON array: [{title,date,start,end}]. Brug YYYY-MM-DD og HH:MM."
-            },
-            {
-              type: "input_image",
-              image_url: `data:image/jpeg;base64,${imageBase64}`
-            }
-          ]
+          title: "Test vagt",
+          date: "2026-06-03",
+          start: "08:00",
+          end: "16:00"
         }
       ]
     });
 
-    const text = response.output_text;
-
-    return res.status(200).json({
-      events: JSON.parse(text)
-    });
-
   } catch (err) {
-    return res.status(500).json({ error: err.message });
+    return res.status(500).json({
+      error: err.message || "Server error"
+    });
   }
 }
