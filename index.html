@@ -14,7 +14,7 @@
   --blue:#3b82f6;--blue-dim:rgba(59,130,246,0.14);--blue-border:rgba(59,130,246,0.35);
   --amber:#f59e0b;--amber-dim:rgba(245,158,11,0.14);--amber-border:rgba(245,158,11,0.35);
   --teal:#14b8a6;--teal-dim:rgba(20,184,166,0.14);--teal-border:rgba(20,184,166,0.35);
-  --red:#ef4444;--red-dim:rgba(239,68,68,0.12);
+  --red:#ef4444;--red-dim:rgba(239,68,68,.12);
   --purple:#a78bfa;--purple-dim:rgba(167,139,250,0.14);
   --r:10px;--rl:14px;
 }
@@ -57,9 +57,11 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
 .cal-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem;flex-wrap:wrap;gap:10px}
 .cal-nav h2{font-size:20px;font-weight:500;letter-spacing:-.3px;min-width:190px}
 .nav-row{display:flex;gap:6px;align-items:center}
-.legend{display:flex;gap:10px;flex-wrap:wrap}
+.legend{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
 .li{display:flex;align-items:center;gap:5px;font-size:12px;color:var(--text2)}
 .ld{width:8px;height:8px;border-radius:2px}
+.edit-pencil { cursor: pointer; font-size: 11px; color: var(--text3); margin-left: 3px; transition: color 0.15s; }
+.edit-pencil:hover { color: var(--blue); }
 
 .wdays{display:grid;grid-template-columns:repeat(7,1fr);margin-bottom:3px}
 .wd{text-align:center;font-size:11px;color:var(--text3);padding:4px 0;text-transform:uppercase;letter-spacing:.5px;font-weight:500}
@@ -99,16 +101,19 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
 
 /* ── AI MODAL ── */
 .ai-modal{max-width:460px}
-.drop-zone{border:1.5px dashed var(--border2);border-radius:var(--r);padding:2rem;text-align:center;cursor:pointer;transition:all .2s;position:relative;background:var(--bg3)}
+.drop-zone{border:1.5px dashed var(--border2);border-radius:var(--r);padding:1.5rem;text-align:center;cursor:pointer;transition:all .2s;position:relative;background:var(--bg3);margin-top:8px;}
 .drop-zone:hover,.drop-zone.drag{border-color:var(--purple);background:var(--purple-dim)}
 .drop-zone input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
-.drop-icon{font-size:32px;margin-bottom:.5rem}
-.drop-zone p{font-size:13px;color:var(--text2)}
+.drop-icon{font-size:24px;margin-bottom:.25rem}
+.drop-zone p{font-size:12px;color:var(--text2)}
 .drop-zone .hint{font-size:11px;color:var(--text3);margin-top:.25rem}
-.preview-img{width:100%;border-radius:8px;border:1px solid var(--border);margin-top:.75rem;max-height:200px;object-fit:contain;display:none}
-.ai-result{background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);padding:.9rem;margin-top:.75rem;font-size:13px;color:var(--text2);line-height:1.6;display:none;max-height:180px;overflow-y:auto}
+.preview-img{width:100%;border-radius:8px;border:1px solid var(--border);margin-top:.75rem;max-height:160px;object-fit:contain;display:none}
+.ai-result{background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);padding:.9rem;margin-top:.75rem;font-size:13px;color:var(--text2);line-height:1.6;display:none;max-height:150px;overflow-y:auto}
 .ai-status{font-size:13px;color:var(--purple);margin-top:.5rem;min-height:18px;display:flex;align-items:center;gap:6px}
 .spinner{width:14px;height:14px;border:2px solid var(--purple-dim);border-top-color:var(--purple);border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0}
+.divider { text-align: center; margin: 12px 0; font-size: 11px; color: var(--text3); font-weight: bold; position: relative; }
+.divider::before, .divider::after { content: ""; position: absolute; top: 50%; width: 35%; height: 1px; background: var(--border); }
+.divider::before { left: 0; } .divider::after { right: 0; }
 @keyframes spin{to{transform:rotate(360deg)}}
 
 /* ── IMPORT MODAL ── */
@@ -133,7 +138,6 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
 </head>
 <body>
 
-<!-- AUTH -->
 <div id="authScreen">
   <div class="auth-card">
     <h1>Min Kalender</h1>
@@ -146,12 +150,11 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
   </div>
 </div>
 
-<!-- APP -->
 <div id="appScreen" style="display:none">
   <div class="app-header">
     <div class="logo"><div class="logo-dot"></div>Min Kalender</div>
     <div class="hactions">
-      <button class="btn-sm ai" onclick="openAI()">✦ <span>AI-scan vagt</span></button>
+      <button class="btn-sm ai" onclick="openAI()">✦ <span>AI Bot (Besked/Billede)</span></button>
       <button class="btn-sm imp" onclick="openImport()">↑ <span>Importer vagter</span></button>
       <button class="btn-sm" onclick="logout()">Log ud</button>
     </div>
@@ -165,8 +168,8 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
         <button class="btn-sm" onclick="goToday()">I dag</button>
       </div>
       <div class="legend">
-        <span class="li"><span class="ld" style="background:#3b82f6"></span>Arbejde 1</span>
-        <span class="li"><span class="ld" style="background:#f59e0b"></span>Arbejde 2</span>
+        <span class="li"><span class="ld" style="background:#3b82f6"></span><span id="txtJob1">Arbejde 1</span><span class="edit-pencil" onclick="inlineRename('work')">&#9998;</span></span>
+        <span class="li"><span class="ld" style="background:#f59e0b"></span><span id="txtJob2">Arbejde 2</span><span class="edit-pencil" onclick="inlineRename('work2')">&#9998;</span></span>
         <span class="li"><span class="ld" style="background:#14b8a6"></span>Privat</span>
       </div>
     </div>
@@ -175,7 +178,6 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
   </div>
 </div>
 
-<!-- EVENT MODAL -->
 <div class="overlay" id="evOvl" style="display:none" onclick="if(event.target===this)closeEv()">
   <div class="modal">
     <h3 id="evMTitle">Ny begivenhed</h3>
@@ -186,8 +188,8 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
     <label>Kategori</label>
     <select id="evCat">
       <option value="personal">Privat</option>
-      <option value="work">Arbejde — kilde 1</option>
-      <option value="work2">Arbejde — kilde 2</option>
+      <option value="work" class="lblJob1">Arbejde 1</option>
+      <option value="work2" class="lblJob2">Arbejde 2</option>
     </select>
     <label>Note</label><textarea id="evN" placeholder="Valgfri note..."></textarea>
     <div class="mbtns">
@@ -198,32 +200,38 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
   </div>
 </div>
 
-<!-- AI MODAL -->
 <div class="overlay" id="aiOvl" style="display:none" onclick="if(event.target===this)closeAI()">
   <div class="modal ai-modal">
-    <h3>✦ AI-scan vagtbillede</h3>
-    <p style="font-size:13px;color:var(--text2);margin-bottom:1rem">Tag et screenshot af din vagtplan og AI'en finder automatisk dine vagter og tilføjer dem til kalenderen.</p>
-    <div class="field"><label>Hvilken kilde er dette?</label>
-      <select id="aiSrc"><option value="work">Arbejde — kilde 1</option><option value="work2">Arbejde — kilde 2</option></select>
+    <h3>✦ AI Bot — Generer vagter</h3>
+    <p style="font-size:13px;color:var(--text2);margin-bottom:1rem">Skriv dine vagter som en besked, eller upload et billede/screenshot af din vagtplan.</p>
+    <div class="field"><label>Hvilken kilde tilhører disse vagter?</label>
+      <select id="aiSrc"><option value="work" class="lblJob1">Arbejde 1</option><option value="work2" class="lblJob2">Arbejde 2</option></select>
     </div>
+    
+    <div class="field">
+      <label>Skriv en besked (fx "vagt torsdag 8-16")</label>
+      <textarea id="aiTxtInput" placeholder="Skriv din vagtplan her... F.eks: Vagt på mandag d. 5. maj fra 07:00 til 15:00 bagvagt" style="height:75px;"></textarea>
+    </div>
+
+    <div class="divider">ELLER</div>
+
     <div class="drop-zone" id="dropZone">
       <input type="file" accept="image/*" id="fileInput" onchange="handleFile(this)">
       <div class="drop-icon">📷</div>
       <p>Klik for at vælge billede</p>
-      <p class="hint">Screenshot af vagtplan, PDF-side, foto — alt virker</p>
     </div>
     <img id="prevImg" class="preview-img">
+    
     <div class="ai-status" id="aiStatus"></div>
     <div class="ai-result" id="aiResult"></div>
     <div class="mbtns" style="margin-top:1rem">
       <button class="btn-out" onclick="closeAI()">Luk</button>
-      <button class="btn-save" id="aiBtnScan" onclick="doAIScan()" style="display:none;background:#7c3aed">Scan billede</button>
+      <button class="btn-save" id="aiBtnScan" onclick="doAIScan()" style="background:#7c3aed">Generer vagter</button>
       <button class="btn-save" id="aiBtnAdd" onclick="addAIEvents()" style="display:none;background:#059669">Tilføj til kalender</button>
     </div>
   </div>
 </div>
 
-<!-- IMPORT MODAL -->
 <div class="overlay" id="impOvl" style="display:none" onclick="if(event.target===this)closeImport()">
   <div class="modal imp-modal">
     <h3>Importer arbejdsvagter</h3>
@@ -247,8 +255,6 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
 const SUPABASE_URL = 'https://eqkyhoqfxjywvfywmlls.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVxa3lob3FmeGp5d3ZmeXdtbGxzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk3ODQ5NTksImV4cCI6MjA5NTM2MDk1OX0.0C1_8Gb-CxWibg6xychmJERugtDBDuOghnAcGMaaaPg';
 
-
-
 const { createClient } = supabase;
 const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
 
@@ -260,12 +266,36 @@ let events = [], editId = null, impSrc = 1;
 let aiImageB64 = null, aiImageType = null, aiParsedEvents = [];
 let isLogin = true;
 
+// Globale navne for dine jobs, hentet fra browserens hukommelse (LocalStorage)
+let job1Name = localStorage.getItem('j1Name') || 'Arbejde 1';
+let job2Name = localStorage.getItem('j2Name') || 'Arbejde 2';
+
+// Omdøb funktion (Blyanten) på forsiden
+function inlineRename(jobKey) {
+  const currentName = jobKey === 'work' ? job1Name : job2Name;
+  const newName = prompt(`Hvad skal ${currentName} hedde?`, currentName);
+  if (newName !== null) {
+    if (jobKey === 'work') { job1Name = newName || 'Arbejde 1'; localStorage.setItem('j1Name', job1Name); }
+    else { job2Name = newName || 'Arbejde 2'; localStorage.setItem('j2Name', job2Name); }
+    applyJobNamesUI();
+    render();
+  }
+}
+
+function applyJobNamesUI() {
+  document.getElementById('txtJob1').textContent = job1Name;
+  document.getElementById('txtJob2').textContent = job2Name;
+  document.querySelectorAll('.lblJob1').forEach(el => el.textContent = job1Name);
+  document.querySelectorAll('.lblJob2').forEach(el => el.textContent = job2Name);
+}
+
 // ── AUTH ────────────────────────────────────────────────────────────────
 sb.auth.onAuthStateChange(async (_e, session) => {
   if (session) {
     document.getElementById('authScreen').style.display = 'none';
     const app = document.getElementById('appScreen');
     app.style.display = 'flex'; app.style.flexDirection = 'column';
+    applyJobNamesUI();
     await loadEvents();
   } else {
     document.getElementById('authScreen').style.display = 'flex';
@@ -351,7 +381,12 @@ function render() {
     const sh = de.slice(0, 3); const more = de.length - 3;
     return `<div class="dc${c.o?' om':''}${isT?' tod':''}" onclick="openNew('${ds}')">
       <span class="dn">${c.d}</span>
-      ${sh.map(e => `<span class="ep ${e.type}" onclick="event.stopPropagation();openEdit('${e.id}')" title="${e.title}">${e.start_time?e.start_time.slice(0,5)+' ':''}${e.title}</span>`).join('')}
+      ${sh.map(e => {
+        let displayTitle = e.title;
+        if(e.type === 'work') displayTitle = `[${job1Name}] ${e.title}`;
+        if(e.type === 'work2') displayTitle = `[${job2Name}] ${e.title}`;
+        return `<span class="ep ${e.type}" onclick="event.stopPropagation();openEdit('${e.id}')" title="${displayTitle}">${e.start_time?e.start_time.slice(0,5)+' ':''}${displayTitle}</span>`;
+      }).join('')}
       ${more > 0 ? `<span class="emore">+${more} mere</span>` : ''}
     </div>`;
   }).join('');
@@ -383,13 +418,15 @@ function openEdit(id) {
 }
 function closeEv() { document.getElementById('evOvl').style.display = 'none'; }
 
-// ── AI SCAN ──────────────────────────────────────────────────────────────
+// ── AI SCAN (OPGRADERET TIL BÅDE TEKST OG BILLEDE) ─────────────────────
 function openAI() {
   aiImageB64 = null; aiImageType = null; aiParsedEvents = [];
+  document.getElementById('aiTxtInput').value = '';
   document.getElementById('prevImg').style.display = 'none';
   document.getElementById('aiResult').style.display = 'none';
   document.getElementById('aiStatus').innerHTML = '';
-  document.getElementById('aiBtnScan').style.display = 'none';
+  document.getElementById('aiBtnScan').style.display = 'inline-block';
+  document.getElementById('aiBtnScan').disabled = false;
   document.getElementById('aiBtnAdd').style.display = 'none';
   document.getElementById('fileInput').value = '';
   document.getElementById('aiOvl').style.display = 'flex';
@@ -405,8 +442,7 @@ function handleFile(input) {
     aiImageB64 = full.split(',')[1];
     const prev = document.getElementById('prevImg');
     prev.src = full; prev.style.display = 'block';
-    document.getElementById('aiStatus').innerHTML = 'Billede klar — klik "Scan billede"';
-    document.getElementById('aiBtnScan').style.display = 'inline-block';
+    document.getElementById('aiStatus').innerHTML = 'Billede klar — klik "Generer vagter"';
     document.getElementById('aiBtnAdd').style.display = 'none';
     document.getElementById('aiResult').style.display = 'none';
   };
@@ -414,43 +450,39 @@ function handleFile(input) {
 }
 
 async function doAIScan() {
-  if (!aiImageB64) return;
+  const textMsg = document.getElementById('aiTxtInput').value.trim();
+  if (!aiImageB64 && !textMsg) { alert('Skriv venligst en tekstbesked ELLER upload et billede.'); return; }
+
   const statusEl = document.getElementById('aiStatus');
   const resultEl = document.getElementById('aiResult');
   const scanBtn = document.getElementById('aiBtnScan');
   const addBtn = document.getElementById('aiBtnAdd');
+  
   scanBtn.disabled = true;
-  statusEl.innerHTML = '<div class="spinner"></div> AI analyserer billedet...';
+  statusEl.innerHTML = '<div class="spinner"></div> AI analyserer data...';
   resultEl.style.display = 'none';
 
-  const today = new Date();
-  const prompt = `Du er en kalenderassistent. Analysér dette billede af en vagtplan/arbejdsplan og udtræk ALLE vagter du kan se.
-
-Returner KUN et JSON-array (ingen forklaring, ingen markdown, ingen kodeblokke) på dette format:
-[{"title":"Dagvagt","date":"2026-06-03","start":"08:00","end":"16:00"},...]
-
-Regler:
-- date skal være YYYY-MM-DD format
-- Hvis år mangler, brug ${today.getFullYear()}
-- title skal være vagtens navn/type (fx "Dagvagt", "Aftenvagt", "Nattevagt") — hvis ingen navn, brug "Arbejdsvagt"
-- start og end skal være HH:MM — udelad hvis ikke synlig
-- Medtag KUN vagter der tydeligt tilhører én person (ikke hele afdelingsplanen)
-- Returner [] hvis ingen vagter findes`;
+  let bodyData = {};
+  if (textMsg) {
+    bodyData = { textMessage: textMsg };
+  } else {
+    bodyData = { imageBase64: aiImageB64, imageType: aiImageType };
+  }
 
   try {
     const resp = await fetch('/api/scan', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ imageBase64: aiImageB64, imageType: aiImageType })
+      body: JSON.stringify(bodyData)
     });
+    
     const data = await resp.json();
     if (!resp.ok) throw new Error(data.error || 'Serverfejl');
-    const raw = JSON.stringify(data.events);
-    let cleaned = raw.replace(/```json|```/g, '').trim();
-    aiParsedEvents = JSON.parse(cleaned);
+    
+    aiParsedEvents = data.events || [];
 
     if (!Array.isArray(aiParsedEvents) || aiParsedEvents.length === 0) {
-      statusEl.innerHTML = '⚠ Ingen vagter fundet i billedet. Prøv et tydeligere screenshot.';
+      statusEl.innerHTML = '⚠ Ingen vagter fundet. Prøv at uddybe din tekst eller brug et andet billede.';
       scanBtn.disabled = false;
       return;
     }
@@ -458,7 +490,7 @@ Regler:
     resultEl.innerHTML = '<strong style="color:var(--text);display:block;margin-bottom:6px">Fundet ' + aiParsedEvents.length + ' vagt(er):</strong>' +
       aiParsedEvents.map(e => `<div style="padding:3px 0;border-bottom:1px solid var(--border)">📅 <strong style="color:var(--text)">${e.date}</strong> &nbsp;${e.start||''}${e.end?'–'+e.end:''} &nbsp;<span style="color:var(--text)">${e.title}</span></div>`).join('');
     resultEl.style.display = 'block';
-    statusEl.innerHTML = '✓ Scan færdig — tjek vagterne og klik "Tilføj til kalender"';
+    statusEl.innerHTML = '✓ Analyse færdig — tjek vagterne og klik "Tilføj til kalender"';
     addBtn.style.display = 'inline-block';
     scanBtn.style.display = 'none';
   } catch (err) {
@@ -542,17 +574,6 @@ function parseLine(line, type, userId) {
   const title = line.replace(/\d{4}[-\/]\d{1,2}[-\/]\d{1,2}/,'').replace(/\d{1,2}[-\/\.]\d{1,2}[-\/\.]\d{4}/,'').replace(/\d{1,2}\.\s*(jan|feb|mar|apr|maj|jun|jul|aug|sep|okt|nov|dec)[a-z]*/gi,'').replace(tp,'').replace(/[,;]/g,'').trim()||'Arbejdsvagt';
   return { title, date, start_time, end_time, type, note: null, user_id: userId };
 }
-
-// drag-and-drop
-const dz = document.getElementById('dropZone');
-dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag'); });
-dz.addEventListener('dragleave', () => dz.classList.remove('drag'));
-dz.addEventListener('drop', e => { e.preventDefault(); dz.classList.remove('drag'); const f = e.dataTransfer.files[0]; if(f){ const fi=document.getElementById('fileInput'); const dt=new DataTransfer(); dt.items.add(f); fi.files=dt.files; handleFile(fi); }});
-
-document.addEventListener('keydown', e => {
-  if (e.key==='Escape'){closeEv();closeAI();closeImport();}
-  if (e.key==='Enter' && document.getElementById('authScreen').style.display!=='none') handleAuth();
-});
 </script>
 </body>
 </html>
