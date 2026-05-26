@@ -266,17 +266,21 @@ let events = [], editId = null, impSrc = 1;
 let aiImageB64 = null, aiImageType = null, aiParsedEvents = [];
 let isLogin = true;
 
-// Globale navne for dine jobs, hentet fra browserens hukommelse (LocalStorage)
+// Hent gemte navne med det samme fra hukommelsen
 let job1Name = localStorage.getItem('j1Name') || 'Arbejde 1';
 let job2Name = localStorage.getItem('j2Name') || 'Arbejde 2';
 
-// Omdøb funktion (Blyanten) på forsiden
 function inlineRename(jobKey) {
   const currentName = jobKey === 'work' ? job1Name : job2Name;
   const newName = prompt(`Hvad skal ${currentName} hedde?`, currentName);
-  if (newName !== null) {
-    if (jobKey === 'work') { job1Name = newName || 'Arbejde 1'; localStorage.setItem('j1Name', job1Name); }
-    else { job2Name = newName || 'Arbejde 2'; localStorage.setItem('j2Name', job2Name); }
+  if (newName !== null && newName.trim() !== "") {
+    if (jobKey === 'work') { 
+      job1Name = newName.trim(); 
+      localStorage.setItem('j1Name', job1Name); 
+    } else { 
+      job2Name = newName.trim(); 
+      localStorage.setItem('j2Name', job2Name); 
+    }
     applyJobNamesUI();
     render();
   }
@@ -293,8 +297,7 @@ function applyJobNamesUI() {
 sb.auth.onAuthStateChange(async (_e, session) => {
   if (session) {
     document.getElementById('authScreen').style.display = 'none';
-    const app = document.getElementById('appScreen');
-    app.style.display = 'flex'; app.style.flexDirection = 'column';
+    document.getElementById('appScreen').style.display = 'flex';
     applyJobNamesUI();
     await loadEvents();
   } else {
@@ -334,7 +337,13 @@ function showAMsg(t, err) {
   document.getElementById('aMsg').innerHTML = `<div class="amsg ${err?'err':'ok'}">${t}</div>`;
 }
 
-async function logout() { await sb.auth.signOut(); events = []; }
+// KORREKT LOG OUT DER NULSTILLER SKÆRMEN
+async function logout() { 
+  await sb.auth.signOut(); 
+  events = []; 
+  document.getElementById('appScreen').style.display = 'none';
+  document.getElementById('authScreen').style.display = 'flex';
+}
 
 // ── DATA ────────────────────────────────────────────────────────────────
 async function loadEvents() {
@@ -418,7 +427,7 @@ function openEdit(id) {
 }
 function closeEv() { document.getElementById('evOvl').style.display = 'none'; }
 
-// ── AI SCAN (OPGRADERET TIL BÅDE TEKST OG BILLEDE) ─────────────────────
+// ── AI SCAN ──
 function openAI() {
   aiImageB64 = null; aiImageType = null; aiParsedEvents = [];
   document.getElementById('aiTxtInput').value = '';
