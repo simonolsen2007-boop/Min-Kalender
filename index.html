@@ -207,7 +207,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
     <div class="field"><label>Hvilken kilde tilhører disse vagter?</label>
       <select id="aiSrc"><option value="work" class="lblJob1">Arbejde 1</option><option value="work2" class="lblJob2">Arbejde 2</option></select>
     </div>
-    
+     
     <div class="field">
       <label>Skriv en besked (fx "vagt torsdag 8-16")</label>
       <textarea id="aiTxtInput" placeholder="Skriv din vagtplan her... F.eks: Vagt på mandag d. 5. maj fra 07:00 til 15:00 bagvagt" style="height:75px;"></textarea>
@@ -221,7 +221,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
       <p>Klik for at vælge billede</p>
     </div>
     <img id="prevImg" class="preview-img">
-    
+     
     <div class="ai-status" id="aiStatus"></div>
     <div class="ai-result" id="aiResult"></div>
     <div class="mbtns" style="margin-top:1rem">
@@ -337,7 +337,7 @@ function showAMsg(t, err) {
   document.getElementById('aMsg').innerHTML = `<div class="amsg ${err?'err':'ok'}">${t}</div>`;
 }
 
-// KORREKT LOG OUT DER NULSTILLER SKÆRMEN
+// KORREKT LOG OUT DER NULSTILLER SKÆRMEN MED DET SAMME
 async function logout() { 
   await sb.auth.signOut(); 
   events = []; 
@@ -458,6 +458,7 @@ function handleFile(input) {
   reader.readAsDataURL(file);
 }
 
+// TILPASSET DIN NYESTE SCAN.JS SOM KAN MODTAGE ENTEN BILLEDE ELLER REN TEKST
 async function doAIScan() {
   const textMsg = document.getElementById('aiTxtInput').value.trim();
   if (!aiImageB64 && !textMsg) { alert('Skriv venligst en tekstbesked ELLER upload et billede.'); return; }
