@@ -22,7 +22,7 @@
 html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;font-size:15px}
 
 /* ── AUTH ── */
-#authScreen{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:1rem}
+#authScreen{min-height:100vh;display:none;align-items:center;justify-content:center;padding:1rem}
 .auth-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--rl);padding:2.5rem 2rem;width:100%;max-width:360px}
 .auth-card h1{font-size:22px;font-weight:500;margin-bottom:.25rem;letter-spacing:-.3px}
 .auth-card .sub{font-size:13px;color:var(--text2);margin-bottom:2rem}
@@ -138,7 +138,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
 </head>
 <body>
 
-<div id="authScreen" style="display:none">
+<div id="authScreen">
   <div class="auth-card">
     <h1>Min Kalender</h1>
     <p class="sub" id="authSub">Log ind for at se din kalender</p>
@@ -150,7 +150,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
   </div>
 </div>
 
-<div id="appScreen" style="display:none">
+<div id="appScreen">
   <div class="app-header">
     <div class="logo"><div class="logo-dot"></div>Min Kalender</div>
     <div class="hactions">
@@ -163,7 +163,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
     <div class="cal-nav">
       <div class="nav-row">
         <button class="btn-sm" onclick="chMonth(-1)">←</button>
-        <h2 id="mTitle">Henter kalender...</h2>
+        <h2 id="mTitle">Henter...</h2>
         <button class="btn-sm" onclick="chMonth(1)">→</button>
         <button class="btn-sm" onclick="goToday()">I dag</button>
       </div>
@@ -274,6 +274,32 @@ let isLogin = true;
 let job1Name = localStorage.getItem('j1Name') || 'Arbejde 1';
 let job2Name = localStorage.getItem('j2Name') || 'Arbejde 2';
 
+// KØR FØRST NÅR HTML ER 100% INDLÆST
+window.addEventListener('DOMContentLoaded', () => {
+  // Start med at skjule begge skærme for at undgå blink og lag
+  document.getElementById('authScreen').style.display = 'none';
+  document.getElementById('appScreen').style.display = 'none';
+
+  // Lyt til auth ændringer sikkert
+  sb.auth.onAuthStateChange(async (event, session) => {
+    try {
+      if (session && session.user) {
+        document.getElementById('authScreen').style.display = 'none';
+        document.getElementById('appScreen').style.display = 'flex';
+        applyJobNamesUI();
+        await loadEvents();
+      } else {
+        document.getElementById('appScreen').style.display = 'none';
+        document.getElementById('authScreen').style.display = 'flex';
+      }
+    } catch (err) {
+      console.error("Auth fejl: ", err);
+      document.getElementById('appScreen').style.display = 'none';
+      document.getElementById('authScreen').style.display = 'flex';
+    }
+  });
+});
+
 function inlineRename(jobKey) {
   const currentName = jobKey === 'work' ? job1Name : job2Name;
   const newName = prompt(`Hvad skal ${currentName} hedde?`, currentName);
@@ -291,40 +317,13 @@ function inlineRename(jobKey) {
 }
 
 function applyJobNamesUI() {
-  document.getElementById('txtJob1').textContent = job1Name;
-  document.getElementById('txtJob2').textContent = job2Name;
+  const t1 = document.getElementById('txtJob1');
+  const t2 = document.getElementById('txtJob2');
+  if (t1) t1.textContent = job1Name;
+  if (t2) t2.textContent = job2Name;
   document.querySelectorAll('.lblJob1').forEach(el => el.textContent = job1Name);
   document.querySelectorAll('.lblJob2').forEach(el => el.textContent = job2Name);
 }
-
-// Fejlsikker skift mellem skærme
-function showScreen(screenId) {
-  const auth = document.getElementById('authScreen');
-  const app = document.getElementById('appScreen');
-  if(screenId === 'app') {
-    auth.style.display = 'none';
-    app.style.display = 'flex';
-  } else {
-    app.style.display = 'none';
-    auth.style.display = 'flex';
-  }
-}
-
-// ── SIKKER AUTH LYTTER ───────────────────────────────────
-sb.auth.onAuthStateChange(async (event, session) => {
-  try {
-    if (session && session.user) {
-      showScreen('app');
-      applyJobNamesUI();
-      await loadEvents();
-    } else {
-      showScreen('auth');
-    }
-  } catch (err) {
-    console.error("Auth change error: ", err);
-    showScreen('auth');
-  }
-});
 
 function toggleMode() {
   isLogin = !isLogin;
@@ -361,32 +360,21 @@ async function handleAuth() {
 }
 
 function showAMsg(t, err) {
-  document.getElementById('aMsg').innerHTML = `<div class="amsg ${err?'err':'ok'}">${t}</div>`;
+  const msgEl = document.getElementById('aMsg');
+  if (msgEl) msgEl.innerHTML = `<div class="amsg ${err?'err':'ok'}">${t}</div>`;
 }
 
-// ── KOMPLET LOG UD OG NULSTILLING ──
 async function logout() { 
-  try {
-    await sb.auth.signOut();
-  } catch(e) {}
-  
-  try {
-    localStorage.clear();
-    sessionStorage.clear();
-  } catch(e) {}
-  
+  try { await sb.auth.signOut(); } catch(e) {}
+  try { localStorage.clear(); sessionStorage.clear(); } catch(e) {}
   events = []; 
   window.location.replace(window.location.origin + window.location.pathname);
 }
 
-// ── DATA HÅNDTERING (FEJLSIKKER) ──────────────────────────────────────────
 async function loadEvents() {
   try {
     const sessionRes = await sb.auth.getSession();
-    if (!sessionRes.data.session) {
-      showScreen('auth');
-      return;
-    }
+    if (!sessionRes.data.session) return;
 
     const { data, error } = await sb.from('events').select('*').order('date').order('start_time');
     if (error) throw error;
@@ -394,9 +382,9 @@ async function loadEvents() {
     events = data || [];
     render();
   } catch (err) {
-    console.error("Fejl ved hentning af vagter: ", err);
+    console.error("Hentning fejlede: ", err);
     events = [];
-    render(); // Kør render alligevel, så kalenderen ikke forbliver sort
+    render();
   }
 }
 
@@ -408,7 +396,7 @@ async function saveEv() {
     
     const userRes = await sb.auth.getUser();
     const user = userRes.data.user;
-    if (!user) { alert('Session udløbet. Log venligst ind igen.'); logout(); return; }
+    if (!user) { logout(); return; }
 
     const ev = { 
       title, 
@@ -429,7 +417,6 @@ async function saveEv() {
     closeEv(); 
     await loadEvents();
   } catch (err) {
-    alert("Kunne ikke gemme vagten. Prøv igen.");
     console.error(err);
   }
 }
@@ -445,11 +432,16 @@ async function delEv() {
   }
 }
 
-// ── FEJLSIKKER CALENDAR RENDER ──────────────────────────────────────────
 function render() {
   try {
-    document.getElementById('mTitle').textContent = MONTHS[curM] + ' ' + curY;
-    document.getElementById('wdays').innerHTML = DAYS.map(d => `<div class="wd">${d}</div>`).join('');
+    const mTitle = document.getElementById('mTitle');
+    const calGrid = document.getElementById('calGrid');
+    const wdays = document.getElementById('wdays');
+    
+    if (!mTitle || !calGrid || !wdays) return; // Stop hvis HTML ikke er klar
+    
+    mTitle.textContent = MONTHS[curM] + ' ' + curY;
+    wdays.innerHTML = DAYS.map(d => `<div class="wd">${d}</div>`).join('');
     
     const today = new Date();
     const first = new Date(curY, curM, 1);
@@ -463,15 +455,12 @@ function render() {
     let rem = 42 - cells.length;
     for (let d = 1; d <= rem; d++) cells.push({ d, m: curM + 1, y: curM === 11 ? curY + 1 : curY, o: true });
     
-    document.getElementById('calGrid').innerHTML = cells.map(c => {
+    calGrid.innerHTML = cells.map(c => {
       const ds = `${c.y}-${String(c.m+1).padStart(2,'0')}-${String(c.d).padStart(2,'0')}`;
       const isT = c.d === today.getDate() && c.m === today.getMonth() && c.y === today.getFullYear();
       
-      // Sikret mod at ødelægge render hvis en event har korrupt data eller mangler dato
-      const de = events.filter(e => e && e.date === ds).sort((a,b) => {
-        const tA = a.start_time || '';
-        const tB = b.start_time || '';
-        return tA.localeCompare(tB);
+      const de = (events || []).filter(e => e && e.date === ds).sort((a,b) => {
+        return (a.start_time || '').localeCompare(b.start_time || '');
       });
       
       const sh = de.slice(0, 3); 
@@ -489,15 +478,13 @@ function render() {
       </div>`;
     }).join('');
   } catch (err) {
-    console.error("Render crash forhindret: ", err);
-    document.getElementById('calGrid').innerHTML = "<div style='grid-column: span 7; text-align: center; padding: 20px; color: var(--red);'>Der skete en fejl under visning af kalenderen. Prøv at genindlæse siden.</div>";
+    console.error("Render fejl afværget: ", err);
   }
 }
 
 function chMonth(d) { curM += d; if (curM > 11){curM=0;curY++;} if (curM < 0){curM=11;curY--;} render(); }
 function goToday() { curY = new Date().getFullYear(); curM = new Date().getMonth(); render(); }
 
-// ── EVENT MODAL ──────────────────────────────────────────────────────────
 function openNew(ds) {
   editId = null;
   document.getElementById('evMTitle').textContent = 'Ny begivenhed';
@@ -520,7 +507,6 @@ function openEdit(id) {
 }
 function closeEv() { document.getElementById('evOvl').style.display = 'none'; }
 
-// ── AI SCAN ──
 function openAI() {
   aiImageB64 = null; aiImageType = null; aiParsedEvents = [];
   document.getElementById('aiTxtInput').value = '';
@@ -554,7 +540,7 @@ function handleFile(input) {
 
 async function doAIScan() {
   const textMsg = document.getElementById('aiTxtInput').value.trim();
-  if (!aiImageB64 && !textMsg) { alert('Skriv venligst en tekstbesked ELLER upload et billede.'); return; }
+  if (!aiImageB64 && !textMsg) { alert('Skriv en besked ELLER upload et billede.'); return; }
 
   const statusEl = document.getElementById('aiStatus');
   const resultEl = document.getElementById('aiResult');
@@ -565,12 +551,7 @@ async function doAIScan() {
   statusEl.innerHTML = '<div class="spinner"></div> AI analyserer data...';
   resultEl.style.display = 'none';
 
-  let bodyData = {};
-  if (textMsg) {
-    bodyData = { textMessage: textMsg };
-  } else {
-    bodyData = { imageBase64: aiImageB64, imageType: aiImageType };
-  }
+  let bodyData = textMsg ? { textMessage: textMsg } : { imageBase64: aiImageB64, imageType: aiImageType };
 
   try {
     const resp = await fetch('/api/scan', {
@@ -583,21 +564,19 @@ async function doAIScan() {
     if (!resp.ok) throw new Error(data.error || 'Serverfejl');
     
     aiParsedEvents = data.events || [];
-
-    if (!Array.isArray(aiParsedEvents) || aiParsedEvents.length === 0) {
-      statusEl.innerHTML = '⚠ Ingen vagter fundet. Prøv at uddybe din tekst eller brug et andet billede.';
+    if (aiParsedEvents.length === 0) {
+      statusEl.innerHTML = '⚠ Ingen vagter fundet.';
       scanBtn.disabled = false;
       return;
     }
 
-    resultEl.innerHTML = '<strong style="color:var(--text);display:block;margin-bottom:6px">Fundet ' + aiParsedEvents.length + ' vagt(er):</strong>' +
-      aiParsedEvents.map(e => `<div style="padding:3px 0;border-bottom:1px solid var(--border)">📅 <strong style="color:var(--text)">${e.date}</strong> &nbsp;${e.start||''}${e.end?'–'+e.end:''} &nbsp;<span style="color:var(--text)">${e.title}</span></div>`).join('');
+    resultEl.innerHTML = aiParsedEvents.map(e => `<div style="padding:3px 0;border-bottom:1px solid var(--border)">📅 <strong>${e.date}</strong> &nbsp;${e.start||''}${e.end?'–'+e.end:''} &nbsp;<span>${e.title}</span></div>`).join('');
     resultEl.style.display = 'block';
-    statusEl.innerHTML = '✓ Analyse færdig — tjek vagterne og klik "Tilføj til kalender"';
+    statusEl.innerHTML = '✓ Analyse færdig!';
     addBtn.style.display = 'inline-block';
     scanBtn.style.display = 'none';
   } catch (err) {
-    statusEl.innerHTML = '⚠ Fejl: ' + (err.message || 'Prøv igen');
+    statusEl.innerHTML = '⚠ Fejl: ' + err.message;
     scanBtn.disabled = false;
   }
 }
@@ -607,47 +586,32 @@ async function addAIEvents() {
   const addBtn = document.getElementById('aiBtnAdd');
   const statusEl = document.getElementById('aiStatus');
   addBtn.disabled = true;
-  statusEl.innerHTML = '<div class="spinner"></div> Gemmer vagter...';
+  statusEl.innerHTML = '<div class="spinner"></div> Gemmer...';
   try {
     const userRes = await sb.auth.getUser();
     const user = userRes.data.user;
-    if (!user) { statusEl.innerHTML = '⚠ Session udløbet – log ind igen'; addBtn.disabled = false; return; }
+    if (!user) { addBtn.disabled = false; return; }
     
     const chosenType = document.getElementById('aiSrc').value;
-    const privateKeywords = ['rengøring', 'rengoring', 'tandlæge', 'tandlaege', 'privat', 'aftale', 'fødselsdag', 'fodselstag', 'fitness', 'træning', 'traening', 'læge', 'laege', 'biograf', 'fest', 'spise'];
+    const privateKeywords = ['rengøring', 'tandlæge', 'privat', 'aftale', 'træning', 'læge', 'fest'];
 
     const toInsert = aiParsedEvents.filter(e => e.date).map(e => {
       let finalType = chosenType;
       if (chosenType === 'auto') {
-        const titleLower = (e.title || '').toLowerCase();
-        const isPrivate = privateKeywords.some(keyword => titleLower.includes(keyword));
-        finalType = isPrivate ? 'personal' : 'work'; 
+        finalType = privateKeywords.some(k => (e.title||'').toLowerCase().includes(k)) ? 'personal' : 'work'; 
       }
-
-      return {
-        title: e.title || 'Arbejdsvagt',
-        date: e.date,
-        start_time: e.start || null,
-        end_time: e.end || null,
-        type: finalType,
-        note: null,
-        user_id: user.id
-      };
+      return { title: e.title || 'Arbejdsvagt', date: e.date, start_time: e.start || null, end_time: e.end || null, type: finalType, user_id: user.id };
     });
 
-    if (!toInsert.length) { statusEl.innerHTML = '⚠ Ingen gyldige vagter'; addBtn.disabled = false; return; }
-    const { error } = await sb.from('events').insert(toInsert);
-    if (error) { statusEl.innerHTML = '⚠ Fejl: ' + error.message; addBtn.disabled = false; return; }
-    statusEl.innerHTML = '✓ ' + toInsert.length + ' vagt(er) tilføjet!';
-    addBtn.style.display = 'none';
+    await sb.from('events').insert(toInsert);
+    statusEl.innerHTML = '✓ Tilføjet!';
     setTimeout(async () => { closeAI(); await loadEvents(); }, 1000);
   } catch(err) {
-    statusEl.innerHTML = '⚠ Fejl: ' + err.message;
+    statusEl.innerHTML = '⚠ Fejl';
     addBtn.disabled = false;
   }
 }
 
-// ── IMPORT ───────────────────────────────────────────────────────────────
 function openImport() {
   document.getElementById('impTxt').value = '';
   document.getElementById('impStatus').textContent = '';
@@ -666,9 +630,9 @@ async function doImport() {
   const user = userRes.data.user;
   const type = impSrc === 1 ? 'work' : 'work2';
   const toInsert = lines.map(l => parseLine(l, type, user.id)).filter(Boolean);
-  if (!toInsert.length) { document.getElementById('impStatus').textContent = '⚠ Ingen vagter kunne fortolkes.'; return; }
+  if (!toInsert.length) { document.getElementById('impStatus').textContent = '⚠ Kunne ikke tolkes'; return; }
   await sb.from('events').insert(toInsert);
-  document.getElementById('impStatus').textContent = `✓ ${toInsert.length} vagt(er) importeret`;
+  document.getElementById('impStatus').textContent = `✓ ${toInsert.length} vagter importeret`;
   setTimeout(async () => { closeImport(); await loadEvents(); }, 900);
 }
 
