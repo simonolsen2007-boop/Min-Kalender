@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Min Kalender</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,wght@0,300;0,400;0,500;1,400&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0f0f11;--bg2:#17171a;--bg3:#1e1e22;--bg4:#242428;
+  --border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.13);--border3:rgba(255,255,255,0.2);
+  --text:#e8e8ec;--text2:#8a8a95;--text3:#45454f;
+  --blue:#3b82f6;--blue-dim:rgba(59,130,246,0.14);--blue-border:rgba(59,130,246,0.35);
+  --amber:#f59e0b;--amber-dim:rgba(245,158,11,0.14);--amber-border:rgba(245,158,11,0.35);
+  --teal:#14b8a6;--teal-dim:rgba(20,184,166,0.14);--teal-border:rgba(20,184,166,0.35);
+  --red:#ef4444;--red-dim:rgba(239,68,68,0.12);
+  --purple:#a78bfa;--purple-dim:rgba(167,139,250,0.14);
+  --r:10px;--rl:14px;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM Sans',sans-serif;font-size:15px}
+
+/* ── AUTH ── */
+#authScreen{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:1rem}
+.auth-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--rl);padding:2.5rem 2rem;width:100%;max-width:360px}
+.auth-card h1{font-size:22px;font-weight:500;margin-bottom:.25rem;letter-spacing:-.3px}
+.auth-card .sub{font-size:13px;color:var(--text2);margin-bottom:2rem}
+.field{margin-bottom:.9rem}
+.field label{display:block;font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px}
+.field input{width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);padding:10px 13px;color:var(--text);font-size:14px;font-family:'DM Sans',sans-serif;outline:none;transition:border .15s}
+.field input:focus{border-color:var(--blue)}
+.btn-primary{width:100%;background:var(--blue);border:none;border-radius:var(--r);padding:11px;color:#fff;font-size:14px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;transition:opacity .15s;margin-top:.4rem}
+.btn-primary:hover{opacity:.87}
+.btn-primary:disabled{opacity:.38;cursor:not-allowed}
+.auth-toggle{text-align:center;margin-top:1.1rem;font-size:13px;color:var(--text2)}
+.auth-toggle a{color:var(--blue);cursor:pointer}
+.amsg{font-size:13px;margin-top:.7rem;padding:8px 11px;border-radius:8px}
+.amsg.err{background:rgba(239,68,68,.12);color:#fca5a5}
+.amsg.ok{background:rgba(20,184,166,.12);color:#5eead4}
+
+/* ── APP SHELL ── */
+#appScreen{display:none;min-height:100vh;flex-direction:column}
+.app-header{display:flex;align-items:center;justify-content:space-between;padding:.85rem 1.5rem;border-bottom:1px solid var(--border);background:var(--bg2);position:sticky;top:0;z-index:20;gap:8px;flex-wrap:wrap}
+.logo{font-size:15px;font-weight:500;letter-spacing:-.2px;display:flex;align-items:center;gap:8px}
+.logo-dot{width:8px;height:8px;border-radius:50%;background:var(--blue)}
+.hactions{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.btn-sm{background:none;border:1px solid var(--border);border-radius:8px;padding:6px 12px;color:var(--text2);font-size:13px;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .15s;display:flex;align-items:center;gap:5px;white-space:nowrap}
+.btn-sm:hover{border-color:var(--border2);color:var(--text)}
+.btn-sm.ai{border-color:var(--purple-dim);color:var(--purple)}
+.btn-sm.ai:hover{background:var(--purple-dim)}
+.btn-sm.imp{border-color:var(--blue-border);color:var(--blue)}
+.btn-sm.imp:hover{background:var(--blue-dim)}
+
+/* ── CALENDAR ── */
+.cal-wrap{max-width:1120px;margin:0 auto;padding:1.5rem}
+.cal-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem;flex-wrap:wrap;gap:10px}
+.cal-nav h2{font-size:20px;font-weight:500;letter-spacing:-.3px;min-width:190px}
+.nav-row{display:flex;gap:6px;align-items:center}
+.legend{display:flex;gap:10px;flex-wrap:wrap}
+.li{display:flex;align-items:center;gap:5px;font-size:12px;color:var(--text2)}
+.ld{width:8px;height:8px;border-radius:2px}
+
+.wdays{display:grid;grid-template-columns:repeat(7,1fr);margin-bottom:3px}
+.wd{text-align:center;font-size:11px;color:var(--text3);padding:4px 0;text-transform:uppercase;letter-spacing:.5px;font-weight:500}
+
+.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}
+.dc{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);min-height:94px;padding:7px;cursor:pointer;transition:border-color .12s;position:relative}
+.dc:hover{border-color:var(--border2)}
+.dc.om{opacity:.28}
+.dc.tod{border-color:var(--blue-border)}
+.dn{font-size:12px;font-family:'DM Mono',monospace;color:var(--text2);margin-bottom:4px;display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px}
+.dc.tod .dn{background:var(--blue);color:#fff;border-radius:50%;font-size:11px}
+.ep{font-size:11px;border-radius:4px;padding:2px 6px;margin-bottom:2px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;cursor:pointer;max-width:100%;display:block;transition:opacity .1s;line-height:1.5}
+.ep:hover{opacity:.75}
+.ep.work{background:var(--blue-dim);color:#93c5fd;border-left:2px solid var(--blue)}
+.ep.work2{background:var(--amber-dim);color:#fcd34d;border-left:2px solid var(--amber)}
+.ep.personal{background:var(--teal-dim);color:#5eead4;border-left:2px solid var(--teal)}
+.emore{font-size:10px;color:var(--text3);margin-top:1px}
+
+/* ── OVERLAYS ── */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.65);display:flex;align-items:center;justify-content:center;z-index:50;padding:1rem;backdrop-filter:blur(4px)}
+.modal{background:var(--bg2);border:1px solid var(--border2);border-radius:var(--rl);padding:1.75rem 1.5rem;width:100%;max-width:390px;max-height:90vh;overflow-y:auto}
+.modal h3{font-size:16px;font-weight:500;margin-bottom:1.25rem}
+.modal label{display:block;font-size:11px;color:var(--text2);text-transform:uppercase;letter-spacing:.4px;margin-bottom:5px;margin-top:11px}
+.modal input,.modal select,.modal textarea{width:100%;background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:9px 12px;color:var(--text);font-size:14px;font-family:'DM Sans',sans-serif;outline:none;transition:border .15s}
+.modal input:focus,.modal select:focus,.modal textarea:focus{border-color:var(--blue)}
+.modal select{cursor:pointer}
+.modal textarea{height:68px;resize:vertical}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.mbtns{display:flex;gap:8px;margin-top:1.25rem;justify-content:flex-end;align-items:center}
+.btn-out{background:none;border:1px solid var(--border);border-radius:8px;padding:7px 16px;color:var(--text2);font-size:13px;cursor:pointer;font-family:'DM Sans',sans-serif;transition:all .15s}
+.btn-out:hover{border-color:var(--border2);color:var(--text)}
+.btn-del{background:none;border:1px solid rgba(239,68,68,.3);border-radius:8px;padding:7px 14px;color:var(--red);font-size:13px;cursor:pointer;font-family:'DM Sans',sans-serif;margin-right:auto}
+.btn-del:hover{background:var(--red-dim)}
+.btn-save{background:var(--blue);border:none;border-radius:8px;padding:7px 20px;color:#fff;font-size:13px;font-weight:500;cursor:pointer;font-family:'DM Sans',sans-serif;transition:opacity .15s}
+.btn-save:hover{opacity:.87}
+.btn-save:disabled{opacity:.38;cursor:not-allowed}
+
+/* ── AI MODAL ── */
+.ai-modal{max-width:460px}
+.drop-zone{border:1.5px dashed var(--border2);border-radius:var(--r);padding:2rem;text-align:center;cursor:pointer;transition:all .2s;position:relative;background:var(--bg3)}
+.drop-zone:hover,.drop-zone.drag{border-color:var(--purple);background:var(--purple-dim)}
+.drop-zone input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.drop-icon{font-size:32px;margin-bottom:.5rem}
+.drop-zone p{font-size:13px;color:var(--text2)}
+.drop-zone .hint{font-size:11px;color:var(--text3);margin-top:.25rem}
+.preview-img{width:100%;border-radius:8px;border:1px solid var(--border);margin-top:.75rem;max-height:200px;object-fit:contain;display:none}
+.ai-result{background:var(--bg3);border:1px solid var(--border);border-radius:var(--r);padding:.9rem;margin-top:.75rem;font-size:13px;color:var(--text2);line-height:1.6;display:none;max-height:180px;overflow-y:auto}
+.ai-status{font-size:13px;color:var(--purple);margin-top:.5rem;min-height:18px;display:flex;align-items:center;gap:6px}
+.spinner{width:14px;height:14px;border:2px solid var(--purple-dim);border-top-color:var(--purple);border-radius:50%;animation:spin .7s linear infinite;flex-shrink:0}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ── IMPORT MODAL ── */
+.imp-modal{max-width:440px}
+.stabs{display:flex;gap:6px;margin-bottom:10px}
+.stab{padding:5px 14px;border-radius:7px;font-size:13px;cursor:pointer;border:1px solid var(--border);color:var(--text2);background:none;font-family:'DM Sans',sans-serif;transition:all .15s}
+.stab.s1{border-color:var(--blue-border);color:#93c5fd;background:var(--blue-dim)}
+.stab.s2{border-color:var(--amber-border);color:#fcd34d;background:var(--amber-dim)}
+.hint-box{background:var(--bg3);border:1px solid var(--border);border-radius:8px;padding:9px 12px;margin-bottom:8px}
+.hint-box p{font-size:12px;color:var(--text3);line-height:1.9;font-family:'DM Mono',monospace}
+.istatus{font-size:13px;color:var(--teal);min-height:18px;margin-top:6px}
+
+/* ── MOBILE ── */
+@media(max-width:640px){
+  .cal-wrap{padding:.75rem}
+  .dc{min-height:60px;padding:5px}
+  .ep{font-size:10px}
+  .cal-nav h2{font-size:17px;min-width:0}
+  .hactions .btn-sm span{display:none}
+}
+</style>
+</head>
+<body>
+
+<!-- AUTH -->
+<div id="authScreen">
+  <div class="auth-card">
+    <h1>Min Kalender</h1>
+    <p class="sub" id="authSub">Log ind for at se din kalender</p>
+    <div class="field"><label>Email</label><input type="email" id="aEmail" placeholder="din@email.dk" autocomplete="email"></div>
+    <div class="field"><label>Adgangskode</label><input type="password" id="aPass" placeholder="••••••••" autocomplete="current-password"></div>
+    <button class="btn-primary" id="aBtn" onclick="handleAuth()">Log ind</button>
+    <div id="aMsg"></div>
+    <div class="auth-toggle" id="aToggle">Ny bruger? <a onclick="toggleMode()">Opret konto</a></div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="appScreen" style="display:none">
+  <div class="app-header">
+    <div class="logo"><div class="logo-dot"></div>Min Kalender</div>
+    <div class="hactions">
+      <button class="btn-sm ai" onclick="openAI()">✦ <span>AI-scan vagt</span></button>
+      <button class="btn-sm imp" onclick="openImport()">↑ <span>Importer vagter</span></button>
+      <button class="btn-sm" onclick="logout()">Log ud</button>
+    </div>
+  </div>
+  <div class="cal-wrap">
+    <div class="cal-nav">
+      <div class="nav-row">
+        <button class="btn-sm" onclick="chMonth(-1)">←</button>
+        <h2 id="mTitle"></h2>
+        <button class="btn-sm" onclick="chMonth(1)">→</button>
+        <button class="btn-sm" onclick="goToday()">I dag</button>
+      </div>
+      <div class="legend">
+        <span class="li"><span class="ld" style="background:#3b82f6"></span>Arbejde 1</span>
+        <span class="li"><span class="ld" style="background:#f59e0b"></span>Arbejde 2</span>
+        <span class="li"><span class="ld" style="background:#14b8a6"></span>Privat</span>
+      </div>
+    </div>
+    <div class="wdays" id="wdays"></div>
+    <div class="cal-grid" id="calGrid"></div>
+  </div>
+</div>
+
+<!-- EVENT MODAL -->
+<div class="overlay" id="evOvl" style="display:none" onclick="if(event.target===this)closeEv()">
+  <div class="modal">
+    <h3 id="evMTitle">Ny begivenhed</h3>
+    <label>Titel</label><input type="text" id="evT" placeholder="Fx Dagvagt, Tandlæge...">
+    <label>Dato</label><input type="date" id="evD">
+    <label>Tidspunkt</label>
+    <div class="two"><input type="time" id="evS" placeholder="Start"><input type="time" id="evE" placeholder="Slut"></div>
+    <label>Kategori</label>
+    <select id="evCat">
+      <option value="personal">Privat</option>
+      <option value="work">Arbejde — kilde 1</option>
+      <option value="work2">Arbejde — kilde 2</option>
+    </select>
+    <label>Note</label><textarea id="evN" placeholder="Valgfri note..."></textarea>
+    <div class="mbtns">
+      <button class="btn-del" id="bDel" onclick="delEv()" style="display:none">Slet</button>
+      <button class="btn-out" onclick="closeEv()">Annuller</button>
+      <button class="btn-save" onclick="saveEv()">Gem</button>
+    </div>
+  </div>
+</div>
+
+<!-- AI MODAL -->
+<div class="overlay" id="aiOvl" style="display:none" onclick="if(event.target===this)closeAI()">
+  <div class="modal ai-modal">
+    <h3>✦ AI-scan vagtbillede</h3>
+    <p style="font-size:13px;color:var(--text2);margin-bottom:1rem">Tag et screenshot af din vagtplan og AI'en finder automatisk dine vagter og tilføjer dem til kalenderen.</p>
+    <div class="field"><label>Hvilken kilde er dette?</label>
+      <select id="aiSrc"><option value="work">Arbejde — kilde 1</option><option value="work2">Arbejde — kilde 2</option></select>
+    </div>
+    <div class="drop-zone" id="dropZone">
+      <input type="file" accept="image/*" id="fileInput" onchange="handleFile(this)">
+      <div class="drop-icon">📷</div>
+      <p>Klik for at vælge billede</p>
+      <p class="hint">Screenshot af vagtplan, PDF-side, foto — alt virker</p>
+    </div>
+    <img id="prevImg" class="preview-img">
+    <div class="ai-status" id="aiStatus"></div>
+    <div class="ai-result" id="aiResult"></div>
+    <div class="mbtns" style="margin-top:1rem">
+      <button class="btn-out" onclick="closeAI()">Luk</button>
+      <button class="btn-save" id="aiBtnScan" onclick="doAIScan()" style="display:none;background:#7c3aed">Scan billede</button>
+      <button class="btn-save" id="aiBtnAdd" onclick="addAIEvents()" style="display:none;background:#059669">Tilføj til kalender</button>
+    </div>
+  </div>
+</div>
+
+<!-- IMPORT MODAL -->
+<div class="overlay" id="impOvl" style="display:none" onclick="if(event.target===this)closeImport()">
+  <div class="modal imp-modal">
+    <h3>Importer arbejdsvagter</h3>
+    <p style="font-size:13px;color:var(--text2);margin-bottom:.9rem">Kopiér tekst fra din hjemmeside og indsæt nedenfor.</p>
+    <div class="stabs">
+      <button class="stab s1" id="st1" onclick="selSrc(1)">Kilde 1</button>
+      <button class="stab" id="st2" onclick="selSrc(2)">Kilde 2</button>
+    </div>
+    <div class="hint-box"><p>2026-06-03 08:00-16:00 Dagvagt<br>03/06/2026 07:00-15:30<br>3. jun 08:00-16:00 Aftenvagt</p></div>
+    <label>Indsæt vagter (én per linje)</label>
+    <textarea id="impTxt" style="height:110px" placeholder="Kopiér og indsæt fra hjemmesiden..."></textarea>
+    <div class="istatus" id="impStatus"></div>
+    <div class="mbtns">
+      <button class="btn-out" onclick="closeImport()">Annuller</button>
+      <button class="btn-save" onclick="doImport()">Importer</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://eqkyhoqfxjywvfywmlls.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVxa3lob3FmeGp5d3ZmeXdtbGxzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk3ODQ5NTksImV4cCI6MjA5NTM2MDk1OX0.0C1_8Gb-CxWibg6xychmJERugtDBDuOghnAcGMaaaPg';
+
+
+
+const { createClient } = supabase;
+const sb = createClient(SUPABASE_URL, SUPABASE_KEY);
+
+const MONTHS = ['Januar','Februar','Marts','April','Maj','Juni','Juli','August','September','Oktober','November','December'];
+const DAYS = ['Man','Tir','Ons','Tor','Fre','Lør','Søn'];
+
+let curY = new Date().getFullYear(), curM = new Date().getMonth();
+let events = [], editId = null, impSrc = 1;
+let aiImageB64 = null, aiImageType = null, aiParsedEvents = [];
+let isLogin = true;
+
+// ── AUTH ────────────────────────────────────────────────────────────────
+sb.auth.onAuthStateChange(async (_e, session) => {
+  if (session) {
+    document.getElementById('authScreen').style.display = 'none';
+    const app = document.getElementById('appScreen');
+    app.style.display = 'flex'; app.style.flexDirection = 'column';
+    await loadEvents();
+  } else {
+    document.getElementById('authScreen').style.display = 'flex';
+    document.getElementById('appScreen').style.display = 'none';
+  }
+});
+
+function toggleMode() {
+  isLogin = !isLogin;
+  document.getElementById('aBtn').textContent = isLogin ? 'Log ind' : 'Opret konto';
+  document.getElementById('authSub').textContent = isLogin ? 'Log ind for at se din kalender' : 'Opret din private kalender';
+  document.getElementById('aToggle').innerHTML = isLogin
+    ? 'Ny bruger? <a onclick="toggleMode()">Opret konto</a>'
+    : 'Har du konto? <a onclick="toggleMode()">Log ind</a>';
+  document.getElementById('aMsg').innerHTML = '';
+}
+
+async function handleAuth() {
+  const email = document.getElementById('aEmail').value.trim();
+  const pw = document.getElementById('aPass').value;
+  const btn = document.getElementById('aBtn');
+  if (!email || !pw) { showAMsg('Udfyld begge felter', true); return; }
+  btn.disabled = true; btn.textContent = '...';
+  let error;
+  if (isLogin) {
+    ({ error } = await sb.auth.signInWithPassword({ email, password: pw }));
+  } else {
+    const { error: e } = await sb.auth.signUp({ email, password: pw });
+    error = e;
+    if (!e) { showAMsg('Tjek din email for bekræftelse!', false); btn.disabled = false; btn.textContent = 'Opret konto'; return; }
+  }
+  if (error) { showAMsg(error.message, true); btn.disabled = false; btn.textContent = isLogin ? 'Log ind' : 'Opret konto'; }
+}
+
+function showAMsg(t, err) {
+  document.getElementById('aMsg').innerHTML = `<div class="amsg ${err?'err':'ok'}">${t}</div>`;
+}
+
+async function logout() { await sb.auth.signOut(); events = []; }
+
+// ── DATA ────────────────────────────────────────────────────────────────
+async function loadEvents() {
+  const { data } = await sb.from('events').select('*').order('date').order('start_time');
+  events = data || [];
+  render();
+}
+
+async function saveEv() {
+  const title = document.getElementById('evT').value.trim();
+  const date = document.getElementById('evD').value;
+  if (!title || !date) return;
+  const user = (await sb.auth.getUser()).data.user;
+  const ev = { title, date, start_time: document.getElementById('evS').value || null, end_time: document.getElementById('evE').value || null, type: document.getElementById('evCat').value, note: document.getElementById('evN').value || null, user_id: user.id };
+  if (editId) await sb.from('events').update(ev).eq('id', editId);
+  else await sb.from('events').insert(ev);
+  closeEv(); await loadEvents();
+}
+
+async function delEv() {
+  if (!editId) return;
+  await sb.from('events').delete().eq('id', editId);
+  closeEv(); await loadEvents();
+}
+
+// ── RENDER ──────────────────────────────────────────────────────────────
+function render() {
+  document.getElementById('mTitle').textContent = MONTHS[curM] + ' ' + curY;
+  document.getElementById('wdays').innerHTML = DAYS.map(d => `<div class="wd">${d}</div>`).join('');
+  const today = new Date();
+  const first = new Date(curY, curM, 1);
+  let sd = (first.getDay() + 6) % 7;
+  const dim = new Date(curY, curM + 1, 0).getDate();
+  const dip = new Date(curY, curM, 0).getDate();
+  let cells = [];
+  for (let i = sd - 1; i >= 0; i--) cells.push({ d: dip - i, m: curM - 1, y: curM === 0 ? curY - 1 : curY, o: true });
+  for (let d = 1; d <= dim; d++) cells.push({ d, m: curM, y: curY, o: false });
+  let rem = 42 - cells.length;
+  for (let d = 1; d <= rem; d++) cells.push({ d, m: curM + 1, y: curM === 11 ? curY + 1 : curY, o: true });
+  document.getElementById('calGrid').innerHTML = cells.map(c => {
+    const ds = `${c.y}-${String(c.m+1).padStart(2,'0')}-${String(c.d).padStart(2,'0')}`;
+    const isT = c.d === today.getDate() && c.m === today.getMonth() && c.y === today.getFullYear();
+    const de = events.filter(e => e.date === ds).sort((a,b) => (a.start_time||'') > (b.start_time||'') ? 1 : -1);
+    const sh = de.slice(0, 3); const more = de.length - 3;
+    return `<div class="dc${c.o?' om':''}${isT?' tod':''}" onclick="openNew('${ds}')">
+      <span class="dn">${c.d}</span>
+      ${sh.map(e => `<span class="ep ${e.type}" onclick="event.stopPropagation();openEdit('${e.id}')" title="${e.title}">${e.start_time?e.start_time.slice(0,5)+' ':''}${e.title}</span>`).join('')}
+      ${more > 0 ? `<span class="emore">+${more} mere</span>` : ''}
+    </div>`;
+  }).join('');
+}
+
+function chMonth(d) { curM += d; if (curM > 11){curM=0;curY++;} if (curM < 0){curM=11;curY--;} render(); }
+function goToday() { curY = new Date().getFullYear(); curM = new Date().getMonth(); render(); }
+
+// ── EVENT MODAL ──────────────────────────────────────────────────────────
+function openNew(ds) {
+  editId = null;
+  document.getElementById('evMTitle').textContent = 'Ny begivenhed';
+  document.getElementById('evT').value = ''; document.getElementById('evD').value = ds;
+  document.getElementById('evS').value = ''; document.getElementById('evE').value = '';
+  document.getElementById('evCat').value = 'personal'; document.getElementById('evN').value = '';
+  document.getElementById('bDel').style.display = 'none';
+  document.getElementById('evOvl').style.display = 'flex';
+  setTimeout(() => document.getElementById('evT').focus(), 50);
+}
+function openEdit(id) {
+  const ev = events.find(e => e.id === id); if (!ev) return;
+  editId = id;
+  document.getElementById('evMTitle').textContent = 'Rediger begivenhed';
+  document.getElementById('evT').value = ev.title; document.getElementById('evD').value = ev.date;
+  document.getElementById('evS').value = ev.start_time||''; document.getElementById('evE').value = ev.end_time||'';
+  document.getElementById('evCat').value = ev.type; document.getElementById('evN').value = ev.note||'';
+  document.getElementById('bDel').style.display = 'inline-block';
+  document.getElementById('evOvl').style.display = 'flex';
+}
+function closeEv() { document.getElementById('evOvl').style.display = 'none'; }
+
+// ── AI SCAN ──────────────────────────────────────────────────────────────
+function openAI() {
+  aiImageB64 = null; aiImageType = null; aiParsedEvents = [];
+  document.getElementById('prevImg').style.display = 'none';
+  document.getElementById('aiResult').style.display = 'none';
+  document.getElementById('aiStatus').innerHTML = '';
+  document.getElementById('aiBtnScan').style.display = 'none';
+  document.getElementById('aiBtnAdd').style.display = 'none';
+  document.getElementById('fileInput').value = '';
+  document.getElementById('aiOvl').style.display = 'flex';
+}
+function closeAI() { document.getElementById('aiOvl').style.display = 'none'; }
+
+function handleFile(input) {
+  const file = input.files[0]; if (!file) return;
+  aiImageType = file.type;
+  const reader = new FileReader();
+  reader.onload = e => {
+    const full = e.target.result;
+    aiImageB64 = full.split(',')[1];
+    const prev = document.getElementById('prevImg');
+    prev.src = full; prev.style.display = 'block';
+    document.getElementById('aiStatus').innerHTML = 'Billede klar — klik "Scan billede"';
+    document.getElementById('aiBtnScan').style.display = 'inline-block';
+    document.getElementById('aiBtnAdd').style.display = 'none';
+    document.getElementById('aiResult').style.display = 'none';
+  };
+  reader.readAsDataURL(file);
+}
+
+async function doAIScan() {
+  if (!aiImageB64) return;
+  const statusEl = document.getElementById('aiStatus');
+  const resultEl = document.getElementById('aiResult');
+  const scanBtn = document.getElementById('aiBtnScan');
+  const addBtn = document.getElementById('aiBtnAdd');
+  scanBtn.disabled = true;
+  statusEl.innerHTML = '<div class="spinner"></div> AI analyserer billedet...';
+  resultEl.style.display = 'none';
+
+  const today = new Date();
+  const prompt = `Du er en kalenderassistent. Analysér dette billede af en vagtplan/arbejdsplan og udtræk ALLE vagter du kan se.
+
+Returner KUN et JSON-array (ingen forklaring, ingen markdown, ingen kodeblokke) på dette format:
+[{"title":"Dagvagt","date":"2026-06-03","start":"08:00","end":"16:00"},...]
+
+Regler:
+- date skal være YYYY-MM-DD format
+- Hvis år mangler, brug ${today.getFullYear()}
+- title skal være vagtens navn/type (fx "Dagvagt", "Aftenvagt", "Nattevagt") — hvis ingen navn, brug "Arbejdsvagt"
+- start og end skal være HH:MM — udelad hvis ikke synlig
+- Medtag KUN vagter der tydeligt tilhører én person (ikke hele afdelingsplanen)
+- Returner [] hvis ingen vagter findes`;
+
+  try {
+    const resp = await fetch('/api/scan', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ imageBase64: aiImageB64, imageType: aiImageType })
+    });
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.error || 'Serverfejl');
+    const raw = JSON.stringify(data.events);
+    let cleaned = raw.replace(/```json|```/g, '').trim();
+    aiParsedEvents = JSON.parse(cleaned);
+
+    if (!Array.isArray(aiParsedEvents) || aiParsedEvents.length === 0) {
+      statusEl.innerHTML = '⚠ Ingen vagter fundet i billedet. Prøv et tydeligere screenshot.';
+      scanBtn.disabled = false;
+      return;
+    }
+
+    resultEl.innerHTML = '<strong style="color:var(--text);display:block;margin-bottom:6px">Fundet ' + aiParsedEvents.length + ' vagt(er):</strong>' +
+      aiParsedEvents.map(e => `<div style="padding:3px 0;border-bottom:1px solid var(--border)">📅 <strong style="color:var(--text)">${e.date}</strong> &nbsp;${e.start||''}${e.end?'–'+e.end:''} &nbsp;<span style="color:var(--text)">${e.title}</span></div>`).join('');
+    resultEl.style.display = 'block';
+    statusEl.innerHTML = '✓ Scan færdig — tjek vagterne og klik "Tilføj til kalender"';
+    addBtn.style.display = 'inline-block';
+    scanBtn.style.display = 'none';
+  } catch (err) {
+    statusEl.innerHTML = '⚠ Fejl: ' + (err.message || 'Prøv igen');
+    scanBtn.disabled = false;
+  }
+}
+
+async function addAIEvents() {
+  if (!aiParsedEvents.length) return;
+  const addBtn = document.getElementById('aiBtnAdd');
+  const statusEl = document.getElementById('aiStatus');
+  addBtn.disabled = true;
+  statusEl.innerHTML = '<div class="spinner"></div> Gemmer vagter...';
+  try {
+    const { data: { user } } = await sb.auth.getUser();
+    if (!user) { statusEl.innerHTML = '⚠ Ikke logget ind — prøv at genindlæse siden'; addBtn.disabled = false; return; }
+    const type = document.getElementById('aiSrc').value;
+    const toInsert = aiParsedEvents.filter(e => e.date).map(e => ({
+      title: e.title || 'Arbejdsvagt',
+      date: e.date,
+      start_time: e.start || null,
+      end_time: e.end || null,
+      type,
+      note: null,
+      user_id: user.id
+    }));
+    if (!toInsert.length) { statusEl.innerHTML = '⚠ Ingen gyldige vagter at tilføje'; addBtn.disabled = false; return; }
+    const { error } = await sb.from('events').insert(toInsert);
+    if (error) { statusEl.innerHTML = '⚠ Fejl: ' + error.message; addBtn.disabled = false; return; }
+    statusEl.innerHTML = '✓ ' + toInsert.length + ' vagt(er) tilføjet!';
+    addBtn.style.display = 'none';
+    setTimeout(async () => { closeAI(); await loadEvents(); }, 1000);
+  } catch(err) {
+    statusEl.innerHTML = '⚠ Fejl: ' + err.message;
+    addBtn.disabled = false;
+  }
+}
+
+// ── IMPORT ───────────────────────────────────────────────────────────────
+function openImport() {
+  document.getElementById('impTxt').value = '';
+  document.getElementById('impStatus').textContent = '';
+  document.getElementById('impOvl').style.display = 'flex';
+}
+function closeImport() { document.getElementById('impOvl').style.display = 'none'; }
+function selSrc(n) {
+  impSrc = n;
+  document.getElementById('st1').className = 'stab' + (n===1?' s1':'');
+  document.getElementById('st2').className = 'stab' + (n===2?' s2':'');
+}
+
+async function doImport() {
+  const lines = document.getElementById('impTxt').value.split('\n').map(l=>l.trim()).filter(Boolean);
+  const user = (await sb.auth.getUser()).data.user;
+  const type = impSrc === 1 ? 'work' : 'work2';
+  const toInsert = lines.map(l => parseLine(l, type, user.id)).filter(Boolean);
+  if (!toInsert.length) { document.getElementById('impStatus').textContent = '⚠ Ingen vagter kunne fortolkes.'; return; }
+  await sb.from('events').insert(toInsert);
+  document.getElementById('impStatus').textContent = `✓ ${toInsert.length} vagt(er) importeret`;
+  setTimeout(async () => { closeImport(); await loadEvents(); }, 900);
+}
+
+function parseLine(line, type, userId) {
+  const dp = [/(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})/,/(\d{1,2})[-\/\.](\d{1,2})[-\/\.](\d{4})/,/(\d{1,2})\.\s*(jan|feb|mar|apr|maj|jun|jul|aug|sep|okt|nov|dec)/i];
+  const tp = /(\d{1,2})[:\.](\d{2})\s*[-–]\s*(\d{1,2})[:\.](\d{2})/;
+  let date = null;
+  for (const p of dp) {
+    const m = line.match(p);
+    if (m) {
+      if (p===dp[0]) date=`${m[1]}-${m[2].padStart(2,'0')}-${m[3].padStart(2,'0')}`;
+      else if (p===dp[1]) date=`${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`;
+      else { const mo=['jan','feb','mar','apr','maj','jun','jul','aug','sep','okt','nov','dec'].indexOf(m[2].toLowerCase())+1; date=`${curY}-${String(mo).padStart(2,'0')}-${m[1].padStart(2,'0')}`; }
+      break;
+    }
+  }
+  if (!date) return null;
+  let start_time=null, end_time=null;
+  const tm = line.match(tp);
+  if (tm) { start_time=`${tm[1].padStart(2,'0')}:${tm[2]}`; end_time=`${tm[3].padStart(2,'0')}:${tm[4]}`; }
+  const title = line.replace(/\d{4}[-\/]\d{1,2}[-\/]\d{1,2}/,'').replace(/\d{1,2}[-\/\.]\d{1,2}[-\/\.]\d{4}/,'').replace(/\d{1,2}\.\s*(jan|feb|mar|apr|maj|jun|jul|aug|sep|okt|nov|dec)[a-z]*/gi,'').replace(tp,'').replace(/[,;]/g,'').trim()||'Arbejdsvagt';
+  return { title, date, start_time, end_time, type, note: null, user_id: userId };
+}
+
+// drag-and-drop
+const dz = document.getElementById('dropZone');
+dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag'); });
+dz.addEventListener('dragleave', () => dz.classList.remove('drag'));
+dz.addEventListener('drop', e => { e.preventDefault(); dz.classList.remove('drag'); const f = e.dataTransfer.files[0]; if(f){ const fi=document.getElementById('fileInput'); const dt=new DataTransfer(); dt.items.add(f); fi.files=dt.files; handleFile(fi); }});
+
+document.addEventListener('keydown', e => {
+  if (e.key==='Escape'){closeEv();closeAI();closeImport();}
+  if (e.key==='Enter' && document.getElementById('authScreen').style.display!=='none') handleAuth();
+});
+</script>
+</body>
+</html>
