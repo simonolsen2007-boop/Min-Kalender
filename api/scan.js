@@ -12,25 +12,22 @@ export default async function handler(req, res) {
   const year = new Date().getFullYear();
 
   try {
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${process.env.OPENAI_API_KEY}`
-      },
-      body: JSON.stringify({
-        model: 'gpt-4o-mini',
-        max_tokens: 1000,
-        messages: [{
-          role: 'user',
-          content: [
-            {
-              type: 'image_url',
-              image_url: { url: `data:${mediaType};base64,${imageBase64}` }
-            },
-            {
-              type: 'text',
-              text: `Du er en kalenderassistent. Analysér dette billede af en vagtplan og udtræk ALLE vagter.
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_KEY}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{
+            parts: [
+              {
+                inline_data: {
+                  mime_type: mediaType,
+                  data: imageBase64
+                }
+              },
+              {
+                text: `Du er en kalenderassistent. Analysér dette billede af en vagtplan og udtræk ALLE vagter.
 
 Returner KUN et JSON-array uden forklaring eller markdown:
 [{"title":"Dagvagt","date":"${year}-06-03","start":"08:00","end":"16:00"},...]
@@ -41,16 +38,17 @@ Regler:
 - title er vagtens navn — brug "Arbejdsvagt" hvis intet navn
 - start og end er HH:MM — udelad hvis ikke synligt
 - Returner [] hvis ingen vagter findes`
-            }
-          ]
-        }]
-      })
-    });
+              }
+            ]
+          }]
+        })
+      }
+    );
 
     const data = await response.json();
-    if (!response.ok) return res.status(500).json({ error: data.error?.message || 'OpenAI fejl' });
+    if (!response.ok) return res.status(500).json({ error: data.error?.message || 'Gemini fejl' });
 
-    const raw = data.choices?.[0]?.message?.content?.trim() || '[]';
+    const raw = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '[]';
     const cleaned = raw.replace(/```json|```/g, '').trim();
 
     let events = [];
