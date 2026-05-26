@@ -204,7 +204,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
   <div class="modal ai-modal">
     <h3>✦ AI Bot — Generer vagter</h3>
     <p style="font-size:13px;color:var(--text2);margin-bottom:1rem">Skriv dine vagter som en besked, eller upload et billede/screenshot af din vagtplan.</p>
-    <div class="field"><label>Hvilken kilde tilhører disse vagter?</label>
+    <div class="field"><label>Hvilken kilde tilhører dine vagter?</label>
       <select id="aiSrc">
         <option value="auto">Automatisk (AI bestemmer selv privat/arbejde)</option>
         <option value="work" class="lblJob1">Arbejde 1</option>
@@ -212,7 +212,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
         <option value="personal">Tving til: Privat</option>
       </select>
     </div>
-       
+        
     <div class="field">
       <label>Skriv en besked (fx "vagt torsdag 8-16")</label>
       <textarea id="aiTxtInput" placeholder="Skriv din vagtplan her... F.eks: lørdag kl 7 rengøring" style="height:75px;"></textarea>
@@ -226,7 +226,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
       <p>Klik for at vælge billede</p>
     </div>
     <img id="prevImg" class="preview-img">
-       
+        
     <div class="ai-status" id="aiStatus"></div>
     <div class="ai-result" id="aiResult"></div>
     <div class="mbtns" style="margin-top:1rem">
@@ -341,12 +341,11 @@ function showAMsg(t, err) {
   document.getElementById('aMsg').innerHTML = `<div class="amsg ${err?'err':'ok'}">${t}</div>`;
 }
 
-// FIX: KORREKT LOG UD SOM LUKKER BROWSERENS SESSION MED DET SAMME OG FJERNER GAMMEL DATA
+// ── NY KORREKT LOG UD DER GENSTARTER SIDEN MED DET SAMME ──
 async function logout() { 
   await sb.auth.signOut(); 
   events = []; 
-  document.getElementById('appScreen').style.display = 'none';
-  document.getElementById('authScreen').style.display = 'flex';
+  window.location.reload(); // Tvinger browseren til at opdatere, så login-skærmen vises straks!
 }
 
 // ── DATA ────────────────────────────────────────────────────────────────
@@ -442,7 +441,7 @@ function openAI() {
   document.getElementById('aiBtnScan').disabled = false;
   document.getElementById('aiBtnAdd').style.display = 'none';
   document.getElementById('fileInput').value = '';
-  document.getElementById('aiSrc').value = 'auto'; // Standardindstilling er intelligent genkendelse
+  document.getElementById('aiSrc').value = 'auto'; 
   document.getElementById('aiOvl').style.display = 'flex';
 }
 function closeAI() { document.getElementById('aiOvl').style.display = 'none'; }
@@ -463,7 +462,6 @@ function handleFile(input) {
   reader.readAsDataURL(file);
 }
 
-// AI SCAN-FUNKTION (PASSER TIL DIN SCAN.JS)
 async function doAIScan() {
   const textMsg = document.getElementById('aiTxtInput').value.trim();
   if (!aiImageB64 && !textMsg) { alert('Skriv venligst en tekstbesked ELLER upload et billede.'); return; }
@@ -514,7 +512,6 @@ async function doAIScan() {
   }
 }
 
-// INTELLIGENT GEMNING: Sorterer automatisk rengøring og private gøremål over i privat kategori
 async function addAIEvents() {
   if (!aiParsedEvents.length) return;
   const addBtn = document.getElementById('aiBtnAdd');
@@ -526,18 +523,14 @@ async function addAIEvents() {
     if (!user) { statusEl.innerHTML = '⚠ Ikke logget ind — prøv at genindlæse siden'; addBtn.disabled = false; return; }
     
     const chosenType = document.getElementById('aiSrc').value;
-    
-    // Liste over søgeord der afslører private ting
     const privateKeywords = ['rengøring', 'rengoring', 'tandlæge', 'tandlaege', 'privat', 'aftale', 'fødselsdag', 'fodselstag', 'fitness', 'træning', 'traening', 'læge', 'laege', 'biograf', 'fest', 'spise'];
 
     const toInsert = aiParsedEvents.filter(e => e.date).map(e => {
       let finalType = chosenType;
-      
-      // Hvis brugeren har valgt "Automatisk (AI bestemmer)", tjekker vi ordene i titlen
       if (chosenType === 'auto') {
         const titleLower = (e.title || '').toLowerCase();
         const isPrivate = privateKeywords.some(keyword => titleLower.includes(keyword));
-        finalType = isPrivate ? 'personal' : 'work'; // Hvis ikke privat, ryger den på standard Arbejde 1
+        finalType = isPrivate ? 'personal' : 'work'; 
       }
 
       return {
@@ -596,16 +589,19 @@ function parseLine(line, type, userId) {
     if (m) {
       if (p===dp[0]) date=`${m[1]}-${m[2].padStart(2,'0')}-${m[3].padStart(2,'0')}`;
       else if (p===dp[1]) date=`${m[3]}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`;
-      else { const mo=['jan','feb','mar','apr','maj','jun','jul','aug','sep','okt –','nov','dec'].indexOf(m[2].toLowerCase())+1; date=`${curY}-${String(mo).padStart(2,'0')}-${m[1].padStart(2,'0')}`; }
+      else { const mo=['jan','feb','mar','apr','maj','jun','jul','aug','sep','okt','nov','dec'].indexOf(m[2].toLowerCase())+1; date=`${curY}-${String(mo).padStart(2,'0')}-${m[1].padStart(2,'0')}`; }
       break;
     }
   }
   if (!date) return null;
-  let start_time=null, end_time=null;
   const tm = line.match(tp);
-  if (tm) { start_time=`${tm[1].padStart(2,'0')}:${tm[2]}`; end_time=`${tm[3].padStart(2,'0')}:${tm[4]}`; }
-  const title = line.replace(/\d{4}[-\/]\d{1,2}[-\/]\d{1,2}/,'').replace(/\d{1,2}[-\/\.]\d{1,2}[-\/\.]\d{4}/,'').replace(/\d{1,2}\.\s*(jan|feb|mar|apr|maj|jun|jul|aug|sep|okt|nov|dec)[a-z]*/gi,'').replace(tp,'').replace(/[,;]/g,'').trim()||'Arbejdsvagt';
-  return { title, date, start_time, end_time, type, note: null, user_id: userId };
+  let start = null, end = null;
+  if (tm) { start = `${tm[1].padStart(2,'0')}:${tm[2]}`; end = `${tm[3].padStart(2,'0')}:${tm[4]}`; }
+  let title = line.replace(tp,'');
+  for(const p of dp) title=title.replace(p,'');
+  title = title.replace(/[,;\/–-]/g,'').replace(/\s+/g,' ').trim();
+  if (!title) title = 'Arbejdsvagt';
+  return { title, date, start_time: start, end_time: end, type, note: null, user_id: userId };
 }
 </script>
 </body>
