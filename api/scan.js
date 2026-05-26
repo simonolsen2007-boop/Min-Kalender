@@ -6,7 +6,7 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: "Missing image" });
     }
 
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
+    const response = await fetch("https://api.openai.com/v1/responses", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -14,33 +14,33 @@ export default async function handler(req, res) {
       },
       body: JSON.stringify({
         model: "gpt-4o-mini",
-        messages: [
+        input: [
           {
             role: "user",
             content: [
               {
-                type: "text",
+                type: "input_text",
                 text:
-                  "Find alle vagter i dette billede. Returner KUN JSON array med: title, date (YYYY-MM-DD), start, end"
+                  "Find alle vagter i billedet. Returnér KUN JSON array med title, date (YYYY-MM-DD), start, end."
               },
               {
-                type: "image_url",
-                image_url: {
-                  url: `data:image/jpeg;base64,${imageBase64}`
-                }
+                type: "input_image",
+                image_base64: imageBase64
               }
             ]
           }
-        ],
-        temperature: 0
+        ]
       })
     });
 
     const data = await response.json();
 
-    const text = data.choices?.[0]?.message?.content || "[]";
+    const text =
+      data.output?.[0]?.content?.[0]?.text ||
+      "[]";
 
-    let events;
+    let events = [];
+
     try {
       events = JSON.parse(text);
     } catch {
@@ -51,7 +51,7 @@ export default async function handler(req, res) {
 
   } catch (err) {
     return res.status(500).json({
-      error: err.message || "Server error"
+      error: err.message
     });
   }
 }
