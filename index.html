@@ -274,31 +274,59 @@ let isLogin = true;
 let job1Name = localStorage.getItem('j1Name') || 'Arbejde 1';
 let job2Name = localStorage.getItem('j2Name') || 'Arbejde 2';
 
-// KØR FØRST NÅR HTML ER 100% INDLÆST
-window.addEventListener('DOMContentLoaded', () => {
-  // Start med at skjule begge skærme for at undgå blink og lag
-  document.getElementById('authScreen').style.display = 'none';
-  document.getElementById('appScreen').style.display = 'none';
+// SIKKER OPSTART NÅR SIDEN ER KLAR
+window.addEventListener('DOMContentLoaded', async () => {
+  applyJobNamesUI();
+  
+  // Tjek med det samme om der er en gyldig session, før vi lytter på ændringer
+  try {
+    const { data: { session }, error } = await sb.auth.getSession();
+    if (error || !session) {
+      // Hvis sessionen er korrupt eller ikke findes, vis login med det samme
+      showAuthScreen();
+    } else {
+      showAppScreen();
+      await loadEvents();
+    }
+  } catch (e) {
+    console.error("Session tjek fejlede, rydder op...", e);
+    forceLogoutAndClean();
+  }
 
-  // Lyt til auth ændringer sikkert
+  // Lyt til løbende ændringer (Log ind / Log ud knapper)
   sb.auth.onAuthStateChange(async (event, session) => {
-    try {
-      if (session && session.user) {
-        document.getElementById('authScreen').style.display = 'none';
-        document.getElementById('appScreen').style.display = 'flex';
-        applyJobNamesUI();
-        await loadEvents();
-      } else {
-        document.getElementById('appScreen').style.display = 'none';
-        document.getElementById('authScreen').style.display = 'flex';
-      }
-    } catch (err) {
-      console.error("Auth fejl: ", err);
-      document.getElementById('appScreen').style.display = 'none';
-      document.getElementById('authScreen').style.display = 'flex';
+    if (event === 'SIGNED_IN' && session) {
+      showAppScreen();
+      await loadEvents();
+    } else if (event === 'SIGNED_OUT') {
+      showAuthScreen();
     }
   });
 });
+
+function showAuthScreen() {
+  document.getElementById('appScreen').style.display = 'none';
+  document.getElementById('authScreen').style.display = 'flex';
+}
+
+function showAppScreen() {
+  document.getElementById('authScreen').style.display = 'none';
+  document.getElementById('appScreen').style.display = 'flex';
+}
+
+async function forceLogoutAndClean() {
+  try { await sb.auth.signOut(); } catch(e) {}
+  // Gem jobnavne, men slet alt andet der kan blokere Supabase
+  const j1 = localStorage.getItem('j1Name');
+  const j2 = localStorage.getItem('j2Name');
+  localStorage.clear();
+  sessionStorage.clear();
+  if(j1) localStorage.setItem('j1Name', j1);
+  if(j2) localStorage.setItem('j2Name', j2);
+  
+  events = [];
+  showAuthScreen();
+}
 
 function inlineRename(jobKey) {
   const currentName = jobKey === 'work' ? job1Name : job2Name;
@@ -365,20 +393,13 @@ function showAMsg(t, err) {
 }
 
 async function logout() { 
-  try { await sb.auth.signOut(); } catch(e) {}
-  try { localStorage.clear(); sessionStorage.clear(); } catch(e) {}
-  events = []; 
-  window.location.replace(window.location.origin + window.location.pathname);
+  await forceLogoutAndClean();
 }
 
 async function loadEvents() {
   try {
-    const sessionRes = await sb.auth.getSession();
-    if (!sessionRes.data.session) return;
-
     const { data, error } = await sb.from('events').select('*').order('date').order('start_time');
     if (error) throw error;
-    
     events = data || [];
     render();
   } catch (err) {
@@ -438,7 +459,7 @@ function render() {
     const calGrid = document.getElementById('calGrid');
     const wdays = document.getElementById('wdays');
     
-    if (!mTitle || !calGrid || !wdays) return; // Stop hvis HTML ikke er klar
+    if (!mTitle || !calGrid || !wdays) return;
     
     mTitle.textContent = MONTHS[curM] + ' ' + curY;
     wdays.innerHTML = DAYS.map(d => `<div class="wd">${d}</div>`).join('');
