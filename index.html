@@ -163,7 +163,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'DM San
     <div class="cal-nav">
       <div class="nav-row">
         <button class="btn-sm" onclick="chMonth(-1)">←</button>
-        <h2 id="mTitle"></h2>
+        <h2 id="mTitle">Henter kalender...</h2>
         <button class="btn-sm" onclick="chMonth(1)">→</button>
         <button class="btn-sm" onclick="goToday()">I dag</button>
       </div>
@@ -297,16 +297,32 @@ function applyJobNamesUI() {
   document.querySelectorAll('.lblJob2').forEach(el => el.textContent = job2Name);
 }
 
-// ── OPTIMERET SIGN IN / SIGN OUT LYTTER ───────────────────────────────────
-sb.auth.onAuthStateChange(async (event, session) => {
-  if (session && session.user) {
-    document.getElementById('authScreen').style.display = 'none';
-    document.getElementById('appScreen').style.display = 'flex';
-    applyJobNamesUI();
-    await loadEvents();
+// Fejlsikker skift mellem skærme
+function showScreen(screenId) {
+  const auth = document.getElementById('authScreen');
+  const app = document.getElementById('appScreen');
+  if(screenId === 'app') {
+    auth.style.display = 'none';
+    app.style.display = 'flex';
   } else {
-    document.getElementById('appScreen').style.display = 'none';
-    document.getElementById('authScreen').style.display = 'flex';
+    app.style.display = 'none';
+    auth.style.display = 'flex';
+  }
+}
+
+// ── SIKKER AUTH LYTTER ───────────────────────────────────
+sb.auth.onAuthStateChange(async (event, session) => {
+  try {
+    if (session && session.user) {
+      showScreen('app');
+      applyJobNamesUI();
+      await loadEvents();
+    } else {
+      showScreen('auth');
+    }
+  } catch (err) {
+    console.error("Auth change error: ", err);
+    showScreen('auth');
   }
 });
 
@@ -348,99 +364,134 @@ function showAMsg(t, err) {
   document.getElementById('aMsg').innerHTML = `<div class="amsg ${err?'err':'ok'}">${t}</div>`;
 }
 
-// ── SKUDSIKKER NUULSTILLING OG LOG UD ──
+// ── KOMPLET LOG UD OG NULSTILLING ──
 async function logout() { 
   try {
     await sb.auth.signOut();
   } catch(e) {}
   
-  // Ryd alt manuelt for at bryde den uendelige browser session
-  localStorage.clear();
-  sessionStorage.clear();
-  events = []; 
+  try {
+    localStorage.clear();
+    sessionStorage.clear();
+  } catch(e) {}
   
-  // Rå genindlæsning af siden – tvinger browseren til at glemme gamle tokens
+  events = []; 
   window.location.replace(window.location.origin + window.location.pathname);
 }
 
-// ── DATA HÅNDTERING ──────────────────────────────────────────────────────
+// ── DATA HÅNDTERING (FEJLSIKKER) ──────────────────────────────────────────
 async function loadEvents() {
-  const sessionRes = await sb.auth.getSession();
-  if (!sessionRes.data.session) return;
+  try {
+    const sessionRes = await sb.auth.getSession();
+    if (!sessionRes.data.session) {
+      showScreen('auth');
+      return;
+    }
 
-  const { data, error } = await sb.from('events').select('*').order('date').order('start_time');
-  if (!error) {
+    const { data, error } = await sb.from('events').select('*').order('date').order('start_time');
+    if (error) throw error;
+    
     events = data || [];
     render();
+  } catch (err) {
+    console.error("Fejl ved hentning af vagter: ", err);
+    events = [];
+    render(); // Kør render alligevel, så kalenderen ikke forbliver sort
   }
 }
 
 async function saveEv() {
-  const title = document.getElementById('evT').value.trim();
-  const date = document.getElementById('evD').value;
-  if (!title || !date) return;
-  
-  const userRes = await sb.auth.getUser();
-  const user = userRes.data.user;
-  if (!user) { alert('Session udløbet. Log venligst ind igen.'); logout(); return; }
+  try {
+    const title = document.getElementById('evT').value.trim();
+    const date = document.getElementById('evD').value;
+    if (!title || !date) return;
+    
+    const userRes = await sb.auth.getUser();
+    const user = userRes.data.user;
+    if (!user) { alert('Session udløbet. Log venligst ind igen.'); logout(); return; }
 
-  const ev = { 
-    title, 
-    date, 
-    start_time: document.getElementById('evS').value || null, 
-    end_time: document.getElementById('evE').value || null, 
-    type: document.getElementById('evCat').value, 
-    note: document.getElementById('evN').value || null, 
-    user_id: user.id 
-  };
-  
-  if (editId) {
-    await sb.from('events').update(ev).eq('id', editId);
-  } else {
-    await sb.from('events').insert(ev);
+    const ev = { 
+      title, 
+      date, 
+      start_time: document.getElementById('evS').value || null, 
+      end_time: document.getElementById('evE').value || null, 
+      type: document.getElementById('evCat').value, 
+      note: document.getElementById('evN').value || null, 
+      user_id: user.id 
+    };
+    
+    if (editId) {
+      await sb.from('events').update(ev).eq('id', editId);
+    } else {
+      await sb.from('events').insert(ev);
+    }
+    
+    closeEv(); 
+    await loadEvents();
+  } catch (err) {
+    alert("Kunne ikke gemme vagten. Prøv igen.");
+    console.error(err);
   }
-  
-  closeEv(); 
-  await loadEvents();
 }
 
 async function delEv() {
   if (!editId) return;
-  await sb.from('events').delete().eq('id', editId);
-  closeEv(); 
-  await loadEvents();
+  try {
+    await sb.from('events').delete().eq('id', editId);
+    closeEv(); 
+    await loadEvents();
+  } catch (err) {
+    console.error(err);
+  }
 }
 
-// ── RENDER ──────────────────────────────────────────────────────────────
+// ── FEJLSIKKER CALENDAR RENDER ──────────────────────────────────────────
 function render() {
-  document.getElementById('mTitle').textContent = MONTHS[curM] + ' ' + curY;
-  document.getElementById('wdays').innerHTML = DAYS.map(d => `<div class="wd">${d}</div>`).join('');
-  const today = new Date();
-  const first = new Date(curY, curM, 1);
-  let sd = (first.getDay() + 6) % 7;
-  const dim = new Date(curY, curM + 1, 0).getDate();
-  const dip = new Date(curY, curM, 0).getDate();
-  let cells = [];
-  for (let i = sd - 1; i >= 0; i--) cells.push({ d: dip - i, m: curM - 1, y: curM === 0 ? curY - 1 : curY, o: true });
-  for (let d = 1; d <= dim; d++) cells.push({ d, m: curM, y: curY, o: false });
-  let rem = 42 - cells.length;
-  for (let d = 1; d <= rem; d++) cells.push({ d, m: curM + 1, y: curM === 11 ? curY + 1 : curY, o: true });
-  document.getElementById('calGrid').innerHTML = cells.map(c => {
-    const ds = `${c.y}-${String(c.m+1).padStart(2,'0')}-${String(c.d).padStart(2,'0')}`;
-    const isT = c.d === today.getDate() && c.m === today.getMonth() && c.y === today.getFullYear();
-    const de = events.filter(e => e.date === ds).sort((a,b) => (a.start_time||'') > (b.start_time||'') ? 1 : -1);
-    const sh = de.slice(0, 3); const more = de.length - 3;
-    return `<div class="dc${c.o?' om':''}${isT?' tod':''}" onclick="openNew('${ds}')">
-      <span class="dn">${c.d}</span>
-      ${sh.map(e => {
-        let displayTitle = e.title;
-        if(e.type === 'work') displayTitle = `[${job1Name}] ${e.title}`;
-        if(e.type === 'work2') displayTitle = `[${job2Name}] ${e.title}`;
-        return `<span class="ep ${e.type}" onclick="event.stopPropagation();openEdit('${e.id}')" title="${displayTitle}">${e.start_time?e.start_time.slice(0,5)+' ':''}${displayTitle}</span>`;
-      }).join('')}
-      ${more > 0 ? `<span class="emore">+${more} mere</span>` : ''}
-    </div>`;
-  }).join('');
+  try {
+    document.getElementById('mTitle').textContent = MONTHS[curM] + ' ' + curY;
+    document.getElementById('wdays').innerHTML = DAYS.map(d => `<div class="wd">${d}</div>`).join('');
+    
+    const today = new Date();
+    const first = new Date(curY, curM, 1);
+    let sd = (first.getDay() + 6) % 7;
+    const dim = new Date(curY, curM + 1, 0).getDate();
+    const dip = new Date(curY, curM, 0).getDate();
+    
+    let cells = [];
+    for (let i = sd - 1; i >= 0; i--) cells.push({ d: dip - i, m: curM - 1, y: curM === 0 ? curY - 1 : curY, o: true });
+    for (let d = 1; d <= dim; d++) cells.push({ d, m: curM, y: curY, o: false });
+    let rem = 42 - cells.length;
+    for (let d = 1; d <= rem; d++) cells.push({ d, m: curM + 1, y: curM === 11 ? curY + 1 : curY, o: true });
+    
+    document.getElementById('calGrid').innerHTML = cells.map(c => {
+      const ds = `${c.y}-${String(c.m+1).padStart(2,'0')}-${String(c.d).padStart(2,'0')}`;
+      const isT = c.d === today.getDate() && c.m === today.getMonth() && c.y === today.getFullYear();
+      
+      // Sikret mod at ødelægge render hvis en event har korrupt data eller mangler dato
+      const de = events.filter(e => e && e.date === ds).sort((a,b) => {
+        const tA = a.start_time || '';
+        const tB = b.start_time || '';
+        return tA.localeCompare(tB);
+      });
+      
+      const sh = de.slice(0, 3); 
+      const more = de.length - 3;
+      
+      return `<div class="dc${c.o?' om':''}${isT?' tod':''}" onclick="openNew('${ds}')">
+        <span class="dn">${c.d}</span>
+        ${sh.map(e => {
+          let displayTitle = e.title || 'Uden titel';
+          if(e.type === 'work') displayTitle = `[${job1Name}] ${displayTitle}`;
+          if(e.type === 'work2') displayTitle = `[${job2Name}] ${displayTitle}`;
+          return `<span class="ep ${e.type || 'personal'}" onclick="event.stopPropagation();openEdit('${e.id}')" title="${displayTitle}">${e.start_time?e.start_time.slice(0,5)+' ':''}${displayTitle}</span>`;
+        }).join('')}
+        ${more > 0 ? `<span class="emore">+${more} mere</span>` : ''}
+      </div>`;
+    }).join('');
+  } catch (err) {
+    console.error("Render crash forhindret: ", err);
+    document.getElementById('calGrid').innerHTML = "<div style='grid-column: span 7; text-align: center; padding: 20px; color: var(--red);'>Der skete en fejl under visning af kalenderen. Prøv at genindlæse siden.</div>";
+  }
 }
 
 function chMonth(d) { curM += d; if (curM > 11){curM=0;curY++;} if (curM < 0){curM=11;curY--;} render(); }
@@ -461,9 +512,9 @@ function openEdit(id) {
   const ev = events.find(e => e.id === id); if (!ev) return;
   editId = id;
   document.getElementById('evMTitle').textContent = 'Rediger begivenhed';
-  document.getElementById('evT').value = ev.title; document.getElementById('evD').value = ev.date;
+  document.getElementById('evT').value = ev.title || ''; document.getElementById('evD').value = ev.date || '';
   document.getElementById('evS').value = ev.start_time||''; document.getElementById('evE').value = ev.end_time||'';
-  document.getElementById('evCat').value = ev.type; document.getElementById('evN').value = ev.note||'';
+  document.getElementById('evCat').value = ev.type || 'personal'; document.getElementById('evN').value = ev.note||'';
   document.getElementById('bDel').style.display = 'inline-block';
   document.getElementById('evOvl').style.display = 'flex';
 }
